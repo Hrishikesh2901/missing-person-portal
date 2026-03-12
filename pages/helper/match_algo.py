@@ -8,7 +8,6 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 
-
 warnings.filterwarnings(action="ignore")
 
 
@@ -97,26 +96,24 @@ def match(distance_threshold=3):
     knn.fit(reg_features, numeric_labels)
 
     # For each public submission, find the closest registered case
-    for i, row in public_cases_df.iterrows():
-        pub_label = original_pub_labels[i]  # Original public case ID
+    for enum_idx, (df_idx, row) in enumerate(public_cases_df.iterrows()):
+        pub_label = original_pub_labels[enum_idx]  # Use enumeration index, not df index
         face_encoding = np.array(row[1:]).astype(float)
 
         try:
             # Get distances to nearest neighbors
             closest_distances = knn.kneighbors([face_encoding])[0][0]
             closest_distance = np.min(closest_distances)
-            print(f"Distance for case {pub_label}: {closest_distance}")
 
-            # Check if distance meets threshold criteria
-            if closest_distance >= distance_threshold:  # Lower distance = better match
+            # Check if distance meets threshold criteria (lower = better match)
+            if closest_distance <= distance_threshold:
                 # Get the index of the predicted registered case
                 predicted_idx = knn.predict([face_encoding])[0]
                 # Get the original UUID of the registered case
                 reg_label = original_reg_labels[predicted_idx]
-                # Store the match
-                matched_images[reg_label].append(pub_label)
+                # Store the match with distance for confidence scoring
+                matched_images[reg_label].append((pub_label, float(closest_distance)))
         except Exception as e:
-            print(f"Error processing public case {pub_label}: {str(e)}")
             continue
 
     return {"status": True, "result": matched_images}

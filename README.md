@@ -20,6 +20,20 @@
 
 ---
 
+## Table of Contents
+
+- [The Problem](#the-problem)
+- [A Case, Start to Finish](#a-case-start-to-finish)
+- [How It Works](#how-it-works)
+- [Features](#features)
+- [Getting Started](#getting-started)
+- [Configuring Login Credentials](#configuring-login-credentials)
+- [Seeding Demo Data](#seeding-demo-data)
+- [Tech Stack](#tech-stack)
+- [FAQ](#faq)
+
+---
+
 ## The Problem
 
 Hundreds of people — mostly children — go missing every day in India. When a sighting is reported, officers have to manually compare photos, sift through paperwork, and coordinate across stations. By the time a match is confirmed, the trail has often gone cold.
@@ -94,11 +108,6 @@ cd Finding-missing-person-using-AI
 pip install -r requirements.txt
 ```
 
-Copy and configure credentials:
-```bash
-cp login_config.yml.example login_config.yml  # edit with your credentials
-```
-
 Run the officer/admin portal:
 ```bash
 streamlit run Home.py
@@ -121,6 +130,87 @@ The complainant's email entered during case registration is used as the recipien
 
 ---
 
+## Configuring Login Credentials
+
+Credentials are stored in `login_config.yml`. To add or change a user:
+
+**1. Generate a bcrypt password hash:**
+```python
+import bcrypt
+print(bcrypt.hashpw(b"your_password", bcrypt.gensalt()).decode())
+```
+
+**2. Edit `login_config.yml`:**
+```yaml
+credentials:
+  usernames:
+    your_username:               # used as the login username
+      name: Your Display Name
+      email: you@example.com
+      city: Delhi
+      area: Sector 1
+      role: Admin                # Admin or Officer
+      password: '$2b$12$...'     # paste the hash from step 1
+```
+
+**Roles:**
+| Role | Permissions |
+|---|---|
+| Admin | Register cases, view all cases, trigger matching, edit/delete cases |
+| Officer | Register cases, view own cases |
+
+> `login_config.yml` is git-ignored by default. Never commit real credentials.
+
+---
+
+## Seeding Demo Data
+
+The `scripts/` folder contains two utilities for populating the database with demo data.
+
+### Step 1 — Download sample images
+
+```bash
+# Download ~2 images per celebrity into scripts/bulk_data/reported/
+uv run scripts/download_celebrity_images.py --dest reported
+
+# Or split across both folders (reported + publicly_seen)
+uv run scripts/download_celebrity_images.py --dest both
+```
+
+This uses DuckDuckGo image search — no API key needed.
+
+You can also drop your own images directly into:
+```
+scripts/bulk_data/reported/        ← missing person cases
+scripts/bulk_data/publicly_seen/   ← public sighting submissions
+```
+
+### Step 2 — Run the bulk upload
+
+```bash
+python scripts/bulk_upload.py
+```
+
+This processes every image in both folders:
+- Extracts a face mesh using MediaPipe (images with no detectable face are skipped)
+- Generates realistic metadata (names, cities, Aadhaar numbers, last-seen locations)
+- Inserts records into the SQLite database
+- Copies images to `resources/` so the app can display them
+
+By default `submitted_by` is set to `gagan` (the username in the default `login_config.yml`). If you've changed your username, pass it explicitly:
+
+```bash
+python scripts/bulk_upload.py --officer your_username
+```
+
+To reset and re-seed from scratch:
+```bash
+sqlite3 sqlite_database.db "DELETE FROM registeredcases; DELETE FROM publicsubmissions;"
+python scripts/bulk_upload.py
+```
+
+---
+
 ## Tech Stack
 
 - **Streamlit** — UI for both portals
@@ -129,6 +219,34 @@ The complainant's email entered during case registration is used as the recipien
 - **SQLModel + SQLite** — data storage
 - **Folium** — interactive map
 - **OpenCV** — video frame extraction
+
+---
+
+## FAQ
+
+**Q: Can I run this without an internet connection?**
+The face landmarker model (~30 MB) is downloaded once on first run and cached locally. After that, both portals work fully offline.
+
+**Q: How accurate is the face matching?**
+Accuracy depends heavily on photo quality. Front-facing, well-lit photos work best. The confidence score shown on each match reflects KNN distance — higher is a stronger match.
+
+**Q: Can I add multiple officers?**
+Yes. Add as many usernames as needed to `login_config.yml`. Each officer sees only their own registered cases; Admins see all cases.
+
+**Q: The map doesn't show a city I entered.**
+The map uses a built-in city → coordinates lookup. If a city is missing, open an issue or add it to the `CITY_COORDS` dict in `Home.py`.
+
+**Q: Where is the data stored?**
+Everything is in `sqlite_database.db` (git-ignored) in the project root. Images are stored as JPGs in `resources/` (also git-ignored). Nothing is sent to any external server.
+
+**Q: How do I reset the database?**
+```bash
+sqlite3 sqlite_database.db "DELETE FROM registeredcases; DELETE FROM publicsubmissions;"
+```
+Or simply delete `sqlite_database.db` — it will be recreated on next run.
+
+**Q: Can the public portal be hosted separately from the officer portal?**
+Yes. They are independent Streamlit apps (`Home.py` and `mobile_app.py`) and share only the SQLite database. Point both to the same database file path and they will work together.
 
 ---
 

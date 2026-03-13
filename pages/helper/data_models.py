@@ -33,9 +33,12 @@ class RegisteredCases(SQLModel, table=True):
     age: str = Field(max_length=8, nullable=True)
     complainant_name: str = Field(max_length=128)
     complainant_mobile: str = Field(max_length=10, nullable=True)
+    complainant_email: str = Field(max_length=128, nullable=True, default=None)
     adhaar_card: str = Field(max_length=12)
     last_seen: str = Field(max_length=64)
     address: str = Field(max_length=512)
+    city: str = Field(max_length=64, nullable=True, default=None)
+    description: str = Field(max_length=1024, nullable=True, default=None)
     face_mesh: str = Field(nullable=False)  # JSON string of face mesh landmarks
     # Changed: datetime.utcnow() -> datetime.utcnow (remove parentheses)
     submitted_on: datetime = Field(default_factory=datetime.utcnow, nullable=False)

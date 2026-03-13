@@ -1,1 +1,0 @@
-.\fmp\fmp\python.exe -m streamlit run .\Home.py

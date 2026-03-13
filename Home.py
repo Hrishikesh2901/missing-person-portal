@@ -120,7 +120,7 @@ if st.session_state.get("authentication_status"):
 
     st.session_state["login_status"] = True
     user_info = config["credentials"]["usernames"][st.session_state["username"]]
-    st.session_state["user"] = user_info["name"]
+    st.session_state["user"] = st.session_state["username"]
 
     role = user_info.get("role", "Officer")
     st.session_state["role"] = role
@@ -144,8 +144,8 @@ if st.session_state.get("authentication_status"):
 
     st.write("---")
 
-    found_cases = db_queries.get_registered_cases_count(user_info["name"], "F")
-    non_found_cases = db_queries.get_registered_cases_count(user_info["name"], "NF")
+    found_cases = db_queries.get_registered_cases_count(st.session_state["user"], "F")
+    non_found_cases = db_queries.get_registered_cases_count(st.session_state["user"], "NF")
 
     found_col, not_found_col = st.columns(2)
     found_col.metric("Found Cases Count", value=len(found_cases))
@@ -196,6 +196,24 @@ if st.session_state.get("authentication_status"):
             "Jodhpur": (26.2389, 73.0243),
             "Amritsar": (31.6340, 74.8723),
             "Faridabad": (28.4089, 77.3178),
+            "Allahabad": (25.4358, 81.8463),
+            "Prayagraj": (25.4358, 81.8463),
+            "Mathura": (27.4924, 77.6737),
+            "Bareilly": (28.3670, 79.4304),
+            "Aligarh": (27.8974, 78.0880),
+            "Moradabad": (28.8386, 78.7733),
+            "Saharanpur": (29.9680, 77.5460),
+            "Gorakhpur": (26.7606, 83.3732),
+            "Firozabad": (27.1591, 78.3957),
+            "Jhansi": (25.4484, 78.5685),
+            "Ghaziabad": (28.6692, 77.4538),
+            "Ludhiana": (30.9010, 75.8573),
+            "Jalandhar": (31.3260, 75.5762),
+            "Dehradun": (30.3165, 78.0322),
+            "Haridwar": (29.9457, 78.1642),
+            "Rishikesh": (30.0869, 78.2676),
+            "Shimla": (31.1048, 77.1734),
+            "Bathinda": (30.2110, 74.9455),
             "Unknown": (20.5937, 78.9629),
         }
 

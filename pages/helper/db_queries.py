@@ -46,6 +46,7 @@ def register_new_case(case_details: RegisteredCases):
 
 
 def fetch_registered_cases(submitted_by: str, status: str):
+    print(f"submitted_by: {submitted_by}")
     if status == "All":
         status = ["F", "NF"]
     elif status == "Found":

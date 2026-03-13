@@ -12,30 +12,63 @@
 
 ---
 
+> **Disclaimer**
+>
+> All images of individuals appearing in the screenshots and used as sample data in this project were sourced from the internet solely for the purpose of demonstrating the facial recognition pipeline in a non-commercial, educational context. These images are the property of their respective owners. No claim of ownership is made. If you are the rights holder of any image and wish it to be removed, please open an issue and it will be taken down promptly.
+>
+> This project does not store, distribute, or commercialise any personal images. The face data derived from sample images (landmark vectors) is used only locally for matching demonstration and is not shared with any third party.
+
+---
+
 ## The Problem
 
 Hundreds of people — mostly children — go missing every day in India. When a sighting is reported, officers have to manually compare photos, sift through paperwork, and coordinate across stations. By the time a match is confirmed, the trail has often gone cold.
 
-<img src="./resources/image.png" alt="News Article" width="400"/>
-<img src="./resources/image-1.png" alt="News Article" width="400"/>
+---
+
+## A Case, Start to Finish
+
+**Step 1 — Family files a report. Officer registers the case.**
+
+A family in Haridwar reports their child missing. An officer opens the portal, uploads a photo, and the AI immediately detects the face and extracts a 468-point mesh — no manual tagging needed.
+
+<img src="./assets/screenshots/register_new_case.png" alt="Register New Case — face detected with bounding box" width="700"/>
 
 ---
 
-## The Solution
+**Step 2 — The dashboard tracks every open case.**
 
-A two-portal web app that connects officers registering missing cases with the public reporting sightings — and uses AI to match faces automatically.
+The officer's home screen shows live counts of found and not-found cases, and a map that plots where cases are concentrated across India.
+
+<img src="./assets/screenshots/homepage.png" alt="Officer dashboard with case counts and India map" width="700"/>
+
+---
+
+**Step 3 — A member of the public submits a sighting.**
+
+Someone recognises the person and submits a photo through the public portal (no login required). The same face mesh is extracted and stored.
+
+When an admin clicks **Match Cases**, the KNN model compares all sightings against all open cases. If a face is close enough, the case is automatically flipped to **Found** and the complainant is notified by email.
+
+<img src="./assets/screenshots/view_cases.png" alt="View cases — Found status with sighting location and submitter details" width="700"/>
+
+---
+
+**Step 4 — The city map tells the bigger picture.**
+
+Admins can see which cities have the most unresolved cases and track resolution rates over time.
+
+<img src="./assets/screenshots/cases_by_city.png" alt="Cases by city — India map with city summary table" width="700"/>
+
+---
+
+## How It Works
 
 1. **Officer registers a case** → uploads a photo → AI extracts a 468-point face mesh
 2. **Public submits a sighting** → uploads a photo or video → same extraction
 3. **Admin clicks Refresh** → KNN matches faces across both datasets → email sent to complainant on match
 
 No manual photo comparison. No paperwork pile-up.
-
----
-
-## Screenshots
-
-<!-- Add screenshots here -->
 
 ---
 

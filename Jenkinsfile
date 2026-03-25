@@ -1,3 +1,6 @@
 @Library('my-shared-library') _
 
-Pipeline()
+Pipeline(
+    imageName: "hrishikesh2901/missing-person-portal"
+    
+)

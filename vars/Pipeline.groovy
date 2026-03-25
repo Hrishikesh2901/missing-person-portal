@@ -56,7 +56,7 @@ def call(Map config = [:]) {
             stage('GitOps Sync - ArgoCD') {
                 steps {
                     script {
-                        // Path sahi check kar lena (charts/values.yaml ya charts/missing-person-portal/values.yaml)
+                        
                         sh "sed -i 's|repository:.*|repository: ${config.imageName}|' charts/values.yaml"
                         sh "sed -i 's|tag:.*|tag: ${env.BUILD_NUMBER}|' charts/values.yaml"
                         

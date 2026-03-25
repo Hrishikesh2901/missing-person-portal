@@ -4,16 +4,15 @@ def call(Map config = [:]) {
         
         environment {
             SCANNER_HOME = tool 'SonarScanner'
-            // Yahan hardcode kar diya hai taaki null wala error na aaye
             SONAR_PROJECT_KEY = "MissingPersonAI" 
-            DOCKER_IMAGE = "${config.imageName}:${env.BUILD_NUMBER}"
+            DOCKER_IMAGE = "${config.imageName}"
+            HELM_VALUES_PATH = "charts/missing-person-portal/values.yaml" 
         }
 
         stages {
             stage('Static Code Analysis') {
                 steps {
                     script {
-                        // 'SonarQube-Server' aapke Jenkins System configuration se match hona chahiye
                         withSonarQubeEnv('SonarQube-Server') {
                             sh """
                                 ${SCANNER_HOME}/bin/sonar-scanner \
@@ -29,7 +28,6 @@ def call(Map config = [:]) {
 
             stage('Quality Gate Check') {
                 steps {
-                    // Is stage pe Jenkins wait karega SonarQube ke result ka
                     timeout(time: 5, unit: 'MINUTES') { 
                         waitForQualityGate abortPipeline: true
                     }
@@ -38,7 +36,6 @@ def call(Map config = [:]) {
 
             stage('Security Scan - Trivy') {
                 steps {
-                    // Source code scan
                     sh "trivy fs . --severity HIGH,CRITICAL --exit-code 0" 
                 }
             }
@@ -46,9 +43,14 @@ def call(Map config = [:]) {
             stage('Build & Push Docker Image') {
                 steps {
                     script {
-                        sh "docker build -t ${DOCKER_IMAGE} ."
-                        echo "Docker Image Built: ${DOCKER_IMAGE}"
-                        // sh "docker push ${DOCKER_IMAGE}"
+                        sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ."
+                        sh "docker tag ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                        
+                        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
+                            sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                            sh "docker push ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                            sh "docker push ${DOCKER_IMAGE}:latest"
+                        }
                     }
                 }
             }
@@ -56,25 +58,33 @@ def call(Map config = [:]) {
             stage('GitOps Sync - ArgoCD') {
                 steps {
                     script {
+                        // 1. Helm values update
+                        sh "sed -i 's|repository:.*|repository: ${DOCKER_IMAGE}|' ${HELM_VALUES_PATH}"
+                        sh "sed -i 's|tag:.*|tag: ${env.BUILD_NUMBER}|' ${HELM_VALUES_PATH}"
                         
-                        sh "sed -i 's|repository:.*|repository: ${config.imageName}|' charts/values.yaml"
-                        sh "sed -i 's|tag:.*|tag: ${env.BUILD_NUMBER}|' charts/values.yaml"
+                        echo "Updated ${HELM_VALUES_PATH} with Tag: ${env.BUILD_NUMBER}"
                         
-                        echo "ArgoCD will now automatically sync the changes."
+                        // 2. Git Push logic with your exact URL
+                        withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
+                            sh "git config user.email 'hrishikeshpatil@example.com'"
+                            sh "git config user.name 'Hrishikesh Patil'"
+                            sh "git add ${HELM_VALUES_PATH}"
+                            sh "git commit -m 'Update image tag to ${env.BUILD_NUMBER} [skip ci]'"
+                            
+                            // Exact URL updated here
+                            sh "git push https://${GIT_USER}:${GIT_PASS}@github.com/Hrishikesh2901/missing-person-portal.git HEAD:main"
+                        }
                     }
                 }
             }
         }
         
         post {
-            always {
-                echo "Monitoring metrics are available on the Grafana Dashboard."
-            }
             success {
-                echo "Pipeline finished successfully!"
+                echo "Bhai, Build Green hai! ArgoCD sync check karo."
             }
             failure {
-                echo "Pipeline failed. Check SonarQube or Trivy logs."
+                echo "Kuch toh gadbad hai Daya! Logs check karo."
             }
         }
     }

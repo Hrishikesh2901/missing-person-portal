@@ -1,7 +1,8 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "missing-person-portal.fullname" . }}-pvc
+  name: missing-person-portal-pvc
+  namespace: default
 spec:
   accessModes:
     - ReadWriteOnce

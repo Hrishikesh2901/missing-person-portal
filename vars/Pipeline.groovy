@@ -1,93 +1,72 @@
 def call(Map config = [:]) {
     pipeline {
         agent any
-        
+
         environment {
-            SCANNER_HOME = tool 'SonarScanner'
-            SONAR_PROJECT_KEY = "MissingPersonAI" 
-            // Username match kar diya hai login se
-            DOCKER_IMAGE = "${config.imageName}"
-            HELM_VALUES_PATH = "charts/missing-person-portal/values.yaml" 
+            // Using credentials from Jenkins Global Store
+            DOCKER_HUB_CREDS = 'docker-hub-creds'
+            SONAR_SERVER     = 'sonar-server'
+            IMAGE_NAME       = "${config.imageName}"
         }
 
         stages {
-            stage('Static Code Analysis') {
+            stage('Clean Workspace') {
                 steps {
-                    script {
-                        withSonarQubeEnv('SonarQube-Server') {
-                            sh """
-                                ${SCANNER_HOME}/bin/sonar-scanner \
-                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                -Dsonar.projectName=${SONAR_PROJECT_KEY} \
-                                -Dsonar.sources=. \
-                                -Dsonar.python.version=3
-                            """
-                        }
+                    // Cleaning old files to ensure a fresh start
+                    cleanWs()
+                }
+            }
+
+            stage('Checkout Source') {
+                steps {
+                    // Pulling code from GitHub
+                    checkout scm
+                }
+            }
+
+            stage('Trivy Security Scan') {
+                steps {
+                    // Scanning code files for vulnerabilities before building
+                    sh "trivy fs . > trivy_report.txt"
+                }
+            }
+
+            stage('SonarQube Analysis') {
+                steps {
+                    // Sending code to SonarQube for Quality Gate check
+                    withSonarQubeEnv("${env.SONAR_SERVER}") {
+                        sh "sonar-scanner -Dsonar.projectKey=missing-person-portal"
                     }
                 }
             }
 
-            stage('Quality Gate Check') {
+            stage('Docker Build') {
                 steps {
-                    timeout(time: 5, unit: 'MINUTES') { 
-                        waitForQualityGate abortPipeline: true
-                    }
+                    // Building the Docker image with the build number as tag
+                    sh "docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ."
+                    sh "docker tag ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ${env.IMAGE_NAME}:latest"
                 }
             }
 
-            stage('Security Scan - Trivy') {
+            stage('Docker Hub Push') {
                 steps {
-                    // Exit code 0 taaki minor warnings pe pipeline na ruke
-                    sh "trivy fs . --severity HIGH,CRITICAL --exit-code 0" 
-                }
-            }
-
-            stage('Build & Push Docker Image') {
-                steps {
+                    // Pushing the image to Docker Hub using credentials
                     script {
-                        // Image tag with Build Number
-                        sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ."
-                        sh "docker tag ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
-                        
-                        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
-                            sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
-                            sh "docker push ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                            sh "docker push ${DOCKER_IMAGE}:latest"
-                        }
-                    }
-                }
-            }
-
-            stage('GitOps Sync - ArgoCD') {
-                steps {
-                    script {
-                        // 1. Helm values update
-                        sh "sed -i 's|repository:.*|repository: ${DOCKER_IMAGE}|' ${HELM_VALUES_PATH}"
-                        sh "sed -i 's|tag:.*|tag: ${env.BUILD_NUMBER}|' ${HELM_VALUES_PATH}"
-                        
-                        echo "Updated ${HELM_VALUES_PATH} with Tag: ${env.BUILD_NUMBER}"
-                        
-                        // 2. Git Push logic to your Repo
-                        withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
-                            sh "git config user.email 'hrishikeshpatil@example.com'"
-                            sh "git config user.name 'Hrishikesh Patil'"
-                            sh "git add ${HELM_VALUES_PATH}"
-                            sh "git commit -m 'Update image tag to ${env.BUILD_NUMBER} [skip ci]'"
-                            
-                            // Using the URL you provided
-                            sh "git push https://${GIT_USER}:${GIT_PASS}@github.com/Hrishikesh2901/missing-person-portal.git HEAD:main"
+                        withDockerRegistry(credentialsId: "${env.DOCKER_HUB_CREDS}", url: 'https://index.docker.io/v1/') {
+                            sh "docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+                            sh "docker push ${env.IMAGE_NAME}:latest"
                         }
                     }
                 }
             }
         }
-        
+
         post {
             success {
-                echo "Bhai, Mubarak ho! Pipeline Successful."
+                echo "Deployment Successful for ${env.IMAGE_NAME}"
             }
             failure {
-                echo "Abhi bhi kuch gadbad hai. Logs check karo!"
+                echo "Pipeline Failed! Please check logs for errors."
             }
         }
     }

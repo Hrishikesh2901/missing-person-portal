@@ -1,6 +1,7 @@
-@Library('my-shared-library') _ // Replace with your library name configured in Jenkins
+@Library('my-shared-library') _
 
-main_pipeline(
+// Match the filename exactly (Case-sensitive)
+Main_Pipeline(
     dockerImage: 'hrishipatil193/missing-person-portal',
-    gitRepo: 'github.com/hrishipatil193/Finding-missing-person-using-AI.git'
+    gitRepo: 'github.com/Hrishikesh2901/missing-person-portal.git'
 )

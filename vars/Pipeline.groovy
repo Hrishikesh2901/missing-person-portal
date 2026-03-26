@@ -5,6 +5,7 @@ def call(Map config = [:]) {
         environment {
             SCANNER_HOME = tool 'SonarScanner'
             SONAR_PROJECT_KEY = "MissingPersonAI" 
+            // Username match kar diya hai login se
             DOCKER_IMAGE = "${config.imageName}"
             HELM_VALUES_PATH = "charts/missing-person-portal/values.yaml" 
         }
@@ -36,6 +37,7 @@ def call(Map config = [:]) {
 
             stage('Security Scan - Trivy') {
                 steps {
+                    // Exit code 0 taaki minor warnings pe pipeline na ruke
                     sh "trivy fs . --severity HIGH,CRITICAL --exit-code 0" 
                 }
             }
@@ -43,6 +45,7 @@ def call(Map config = [:]) {
             stage('Build & Push Docker Image') {
                 steps {
                     script {
+                        // Image tag with Build Number
                         sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ."
                         sh "docker tag ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                         
@@ -64,14 +67,14 @@ def call(Map config = [:]) {
                         
                         echo "Updated ${HELM_VALUES_PATH} with Tag: ${env.BUILD_NUMBER}"
                         
-                        // 2. Git Push logic with your exact URL
+                        // 2. Git Push logic to your Repo
                         withCredentials([usernamePassword(credentialsId: 'github-creds', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
                             sh "git config user.email 'hrishikeshpatil@example.com'"
                             sh "git config user.name 'Hrishikesh Patil'"
                             sh "git add ${HELM_VALUES_PATH}"
                             sh "git commit -m 'Update image tag to ${env.BUILD_NUMBER} [skip ci]'"
                             
-                            // Exact URL updated here
+                            // Using the URL you provided
                             sh "git push https://${GIT_USER}:${GIT_PASS}@github.com/Hrishikesh2901/missing-person-portal.git HEAD:main"
                         }
                     }
@@ -81,10 +84,10 @@ def call(Map config = [:]) {
         
         post {
             success {
-                echo "Bhai, Build Green hai! ArgoCD sync check karo."
+                echo "Bhai, Mubarak ho! Pipeline Successful."
             }
             failure {
-                echo "Kuch toh gadbad hai Daya! Logs check karo."
+                echo "Abhi bhi kuch gadbad hai. Logs check karo!"
             }
         }
     }
